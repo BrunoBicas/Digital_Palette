@@ -166,7 +166,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
   void _addLayer() {
     setState(() {
       layers.add(Layer(
-        name: 'Camada ${_nextLayerId}',
+        name: 'Camada $_nextLayerId',
         points: [],
         id: _nextLayerId++,
       ));
@@ -194,7 +194,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
         ..isAntiAlias = true
         ..strokeWidth = strokeWidth
         ..strokeCap = StrokeCap.round
-        ..blendMode = BlendMode.clear;
+        ..blendMode = BlendMode.clear; // Isso vai apagar de verdade agora!
     } else {
       return Paint()
         ..color = selectedColor
@@ -922,13 +922,11 @@ class LayersPainter extends CustomPainter {
     for (var layer in layers) {
       if (!layer.isVisible) continue;
       
-      // Aplica opacidade da camada se necessário
-      if (layer.opacity < 1.0) {
-        canvas.saveLayer(
-          Rect.fromLTWH(0, 0, size.width, size.height),
-          Paint()..color = Color.fromRGBO(255, 255, 255, layer.opacity),
-        );
-      }
+      // Salva uma camada com opacidade aplicada
+      canvas.saveLayer(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        Paint()..color = Color.fromRGBO(255, 255, 255, layer.opacity),
+      );
       
       final points = layer.points;
       for (int i = 0; i < points.length; i++) {
@@ -941,9 +939,7 @@ class LayersPainter extends CustomPainter {
         }
       }
       
-      if (layer.opacity < 1.0) {
-        canvas.restore();
-      }
+      canvas.restore();
     }
   }
 
