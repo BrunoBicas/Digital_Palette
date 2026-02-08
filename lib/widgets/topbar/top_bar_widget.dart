@@ -73,7 +73,7 @@ class TopBarWidget extends StatelessWidget {
             
             TextButton.icon(
               icon: const Icon(Icons.layers),
-              label: Text('Camada ${currentLayerIndex + 1}'),
+              label: Text('Camada $currentLayerIndex'),
               style: TextButton.styleFrom(foregroundColor: Colors.white),
               onPressed: onToggleLayersPanel,
             ),

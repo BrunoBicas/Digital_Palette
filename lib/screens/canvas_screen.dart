@@ -235,7 +235,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
           TopBarWidget(
             historyIndex: historyManager.historyIndex,
             historyLength: historyManager.historyLength,
-            currentLayerIndex: layerManager.currentLayerIndex,
+            currentLayerIndex: layerManager.currentLayerDisplayIndex,
             showLayersPanel: showLayersPanel,
             onUndo: _undo,
             onRedo: _redo,

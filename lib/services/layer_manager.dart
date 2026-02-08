@@ -5,6 +5,19 @@ class LayerManager {
   int currentLayerIndex = 0;
   int _nextLayerId = 1;
 
+    int get currentLayerDisplayIndex {
+    if (layers.isEmpty) return 0;
+
+    var drawableLayersUntilCurrent = 0;
+    for (var i = 0; i <= currentLayerIndex && i < layers.length; i++) {
+      if (!layers[i].isGroup) {
+        drawableLayersUntilCurrent++;
+      }
+    }
+
+    return drawableLayersUntilCurrent;
+  }
+
   LayerManager() {
     addLayer();
   }
@@ -155,6 +168,11 @@ class LayerManager {
     
     final movingLayer = layers[oldIndex];
     
+    if (movingLayer.isGroup) {
+      _reorderGroupWithChildren(oldIndex, newIndex);
+      return;
+    }
+    
     // Verificar se está tentando adicionar a um grupo
     if (!movingLayer.isGroup && layers[newIndex].isGroup) {
       // Adicionar ao grupo
@@ -175,6 +193,80 @@ class LayerManager {
       currentLayerIndex++;
     }
     
+    currentLayerIndex = currentLayerIndex.clamp(0, layers.length - 1);
+  }
+
+  void _reorderGroupWithChildren(int oldIndex, int newIndex) {
+    final groupId = layers[oldIndex].id.toString();
+
+    final movingIndexes = <int>[];
+    for (var i = 0; i < layers.length; i++) {
+      final layer = layers[i];
+      if (i == oldIndex || (!layer.isGroup && layer.groupId == groupId)) {
+        movingIndexes.add(i);
+      }
+    }
+
+    if (movingIndexes.length == 1) {
+      final group = layers.removeAt(oldIndex);
+      layers.insert(newIndex, group);
+      _updateCurrentLayerIndexAfterSimpleReorder(oldIndex, newIndex);
+      return;
+    }
+
+    final movingSet = movingIndexes.toSet();
+    final movingLayers = movingIndexes.map((index) => layers[index]).toList();
+
+    final movingCurrentLayer = movingSet.contains(currentLayerIndex);
+    final currentLayerBeforeMoveId = layers[currentLayerIndex].id;
+    final currentLayerBeforeMove = currentLayerIndex;
+
+    final removedBeforeTarget =
+        movingIndexes.where((index) => index < newIndex).length;
+
+    // O índice recebido já considera a remoção do item arrastado (grupo).
+    // Portanto, ao mover um bloco (grupo + filhos), precisamos descontar apenas
+    // os itens extras removidos antes do target, além do próprio grupo.
+    final alreadyAdjustedForDraggedItem = oldIndex < newIndex ? 1 : 0;
+    final extraRemovedBeforeTarget =
+        (removedBeforeTarget - alreadyAdjustedForDraggedItem).clamp(0, layers.length);
+
+    final insertionIndex = (newIndex - extraRemovedBeforeTarget).clamp(
+      0,
+      layers.length - movingLayers.length,
+    );
+
+    layers = [
+      for (var i = 0; i < layers.length; i++)
+        if (!movingSet.contains(i)) layers[i],
+    ];
+
+    layers.insertAll(insertionIndex, movingLayers);
+
+    if (movingCurrentLayer) {
+      final indexInsideMovedBlock = movingIndexes.indexOf(currentLayerBeforeMove);
+      currentLayerIndex = insertionIndex + indexInsideMovedBlock;
+    } else {
+      currentLayerIndex = layers.indexWhere((layer) =>
+          !layer.isGroup && layer.id == currentLayerBeforeMoveId);
+
+      if (currentLayerIndex == -1) {
+        currentLayerIndex = layers.indexWhere((layer) => !layer.isGroup);
+      }
+    }
+
+    currentLayerIndex = currentLayerIndex.clamp(0, layers.length - 1);
+  }
+
+  void _updateCurrentLayerIndexAfterSimpleReorder(int oldIndex, int newIndex) {
+    if (currentLayerIndex == oldIndex) {
+      currentLayerIndex = newIndex;
+    } else if (oldIndex < currentLayerIndex && newIndex >= currentLayerIndex) {
+      currentLayerIndex--;
+    } else if (oldIndex > currentLayerIndex && newIndex <= currentLayerIndex) {
+      currentLayerIndex++;
+    }
+
     currentLayerIndex = currentLayerIndex.clamp(0, layers.length - 1);
   }
 
