@@ -69,9 +69,30 @@ class LayerManager {
     if (groupIndex < 0 || groupIndex >= layers.length) return;
     if (!layers[groupIndex].isGroup) return;
     if (layers[layerIndex].isGroup) return; // Não adicionar grupo em grupo
-    
+
     final groupId = layers[groupIndex].id.toString();
-    layers[layerIndex].groupId = groupId;
+    final oldGroupId = layers[layerIndex].groupId;
+    final movingLayer = layers.removeAt(layerIndex);
+
+    movingLayer.groupId = groupId;
+
+    final updatedGroupIndex = layers.indexWhere(
+      (layer) => layer.isGroup && layer.id.toString() == groupId,
+    );
+
+    if (updatedGroupIndex == -1) {
+      layers.insert(layerIndex.clamp(0, layers.length), movingLayer);
+      return;
+    }
+
+    // Sempre coloca a camada imediatamente dentro do grupo (abaixo do cabeçalho do grupo).
+    layers.insert(updatedGroupIndex, movingLayer);
+
+    _updateCurrentLayerIndexAfterSimpleReorder(layerIndex, updatedGroupIndex);
+
+    if (oldGroupId != null && oldGroupId != groupId) {
+      _removeGroupIfEmpty(oldGroupId);
+    }
   }
 
   // Remove camada de um grupo
@@ -82,20 +103,22 @@ class LayerManager {
       
       // Se o grupo ficou vazio, remove o grupo
       if (oldGroupId != null) {
-        final hasLayersInGroup = layers.any((l) => 
-          l.groupId == oldGroupId && !l.isGroup
-        );
-        
-        if (!hasLayersInGroup) {
-          final groupIndex = layers.indexWhere((l) => 
-            l.isGroup && l.id.toString() == oldGroupId
-          );
-          if (groupIndex != -1) {
-            layers.removeAt(groupIndex);
-            if (currentLayerIndex >= groupIndex) {
-              currentLayerIndex = (currentLayerIndex - 1).clamp(0, layers.length - 1);
-            }
-          }
+        _removeGroupIfEmpty(oldGroupId);
+      }
+    }
+  }
+
+  void _removeGroupIfEmpty(String groupId) {
+    final hasLayersInGroup = layers.any((l) => l.groupId == groupId && !l.isGroup);
+
+    if (!hasLayersInGroup) {
+      final groupIndex = layers.indexWhere(
+        (l) => l.isGroup && l.id.toString() == groupId,
+      );
+      if (groupIndex != -1) {
+        layers.removeAt(groupIndex);
+        if (currentLayerIndex >= groupIndex) {
+          currentLayerIndex = (currentLayerIndex - 1).clamp(0, layers.length - 1);
         }
       }
     }

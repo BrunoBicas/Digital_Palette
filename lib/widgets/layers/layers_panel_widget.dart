@@ -49,7 +49,7 @@ class LayersPanelWidget extends StatelessWidget {
           ),
           autofocus: true,
           onSubmitted: (value) {
-            if (value.isNotEmpty) {
+             if (value.isNotEmpty) {
               onRenameLayer(index, value);
               Navigator.pop(context);
             }
@@ -74,55 +74,61 @@ class LayersPanelWidget extends StatelessWidget {
     );
   }
 
-  List<Widget> _buildLayersList(BuildContext context) {
-    List<Widget> widgets = [];
-    
+  List<int> _buildVisibleRealIndexes() {
+    final visibleIndexes = <int>[];
+
     for (int visualIndex = 0; visualIndex < layers.length; visualIndex++) {
       final realIndex = layers.length - 1 - visualIndex;
       final layer = layers[realIndex];
-      
-      // Se a camada está em um grupo e o grupo não está expandido, pula
+
       if (layer.groupId != null && !layer.isGroup) {
-        final groupIndex = layers.indexWhere((l) => 
-          l.isGroup && l.id.toString() == layer.groupId
+        final groupIndex = layers.indexWhere(
+          (l) => l.isGroup && l.id.toString() == layer.groupId,
         );
         if (groupIndex != -1 && !layers[groupIndex].isExpanded) {
           continue;
         }
       }
       
+      visibleIndexes.add(realIndex);
+    }
+
+    return visibleIndexes;
+  }
+
+  List<Widget> _buildLayersList(BuildContext context, List<int> visibleRealIndexes) {
+    return visibleRealIndexes.map((realIndex) {
+      final layer = layers[realIndex];
       final isSelected = realIndex == currentLayerIndex;
       final isInGroup = layer.groupId != null;
-      
-      widgets.add(
-        LayerItemWidget(
-          key: ValueKey(layer.id),
-          layer: layer,
-          index: realIndex,
-          isSelected: isSelected,
-          isInGroup: isInGroup,
-          onVisibilityToggle: () => onLayerVisibilityChanged(realIndex),
-          onOpacityChanged: (opacity) => onLayerOpacityChanged(realIndex, opacity),
-          onTap: () => onLayerSelected(realIndex),
-          onRename: () => _showRenameDialog(context, realIndex),
-          onToggleExpand: layer.isGroup 
-            ? () => onToggleGroupExpansion(realIndex)
-            : null,
-          onCreateGroup: !layer.isGroup && !isInGroup
+
+
+      return LayerItemWidget(
+        key: ValueKey(layer.id),
+        layer: layer,
+        index: realIndex,
+        isSelected: isSelected,
+        isInGroup: isInGroup,
+        onVisibilityToggle: () => onLayerVisibilityChanged(realIndex),
+        onOpacityChanged: (opacity) => onLayerOpacityChanged(realIndex, opacity),
+        onTap: () => onLayerSelected(realIndex),
+        onRename: () => _showRenameDialog(context, realIndex),
+        onToggleExpand: layer.isGroup ? () => onToggleGroupExpansion(realIndex) : null,
+        onCreateGroup: !layer.isGroup && !isInGroup
             ? () => onCreateGroupFromLayer(realIndex)
             : null,
-          onRemoveFromGroup: isInGroup && !layer.isGroup
-            ? () => onRemoveLayerFromGroup(realIndex)
-            : null,
-        ),
+        onRemoveFromGroup: isInGroup && !layer.isGroup
+    ? () => onRemoveLayerFromGroup(realIndex)
+    : null,
       );
-    }
-    
-    return widgets;
+
+    }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
+    final visibleRealIndexes = _buildVisibleRealIndexes();
+
     return Positioned(
       right: 0,
       top: 60,
@@ -158,8 +164,7 @@ class LayersPanelWidget extends StatelessWidget {
                   ),
                 ],
               ),
-            ),
-            
+            ),            
             const Padding(
               padding: EdgeInsets.all(8.0),
               child: Text(
@@ -167,33 +172,35 @@ class LayersPanelWidget extends StatelessWidget {
                 style: TextStyle(fontSize: 10, color: Colors.white60),
                 textAlign: TextAlign.center,
               ),
-            ),
-            
+            ),            
             Expanded(
               child: ReorderableListView(
                 onReorder: (int oldVisualIndex, int newVisualIndex) {
-                  // Validação básica
-                  if (oldVisualIndex < 0 || oldVisualIndex >= layers.length) return;
-                  if (newVisualIndex < 0 || newVisualIndex > layers.length) return;
-                  
-                  // Converter índices visuais (invertidos) para índices reais
-                  final oldRealIndex = layers.length - 1 - oldVisualIndex;
-                  
-                  // Ajustar newVisualIndex de acordo com o padrão do ReorderableListView
+                  if (oldVisualIndex < 0 || oldVisualIndex >= visibleRealIndexes.length) {
+                    return;
+                  }
+                  if (newVisualIndex < 0 || newVisualIndex > visibleRealIndexes.length) {
+                    return;
+                  }
+
+                  final oldRealIndex = visibleRealIndexes[oldVisualIndex];
+
                   int adjustedVisualIndex = newVisualIndex;
                   if (newVisualIndex > oldVisualIndex) {
                     adjustedVisualIndex = newVisualIndex - 1;
+                  } 
+
+                  if (adjustedVisualIndex < 0) {
+                    adjustedVisualIndex = 0;
                   }
-                  
-                  // Converter para índice real
-                  final newRealIndex = layers.length - 1 - adjustedVisualIndex;
-                  
-                  // Validação final
-                  if (newRealIndex < 0 || newRealIndex >= layers.length) return;
-                  
+                  if (adjustedVisualIndex >= visibleRealIndexes.length) {
+                    adjustedVisualIndex = visibleRealIndexes.length - 1;
+                  }
+
+                  final newRealIndex = visibleRealIndexes[adjustedVisualIndex];
                   onReorderLayers(oldRealIndex, newRealIndex);
                 },
-                children: _buildLayersList(context),
+                children: _buildLayersList(context, visibleRealIndexes),
               ),
             ),
           ],
